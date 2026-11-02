@@ -35,7 +35,7 @@ obsReveal('ch',s=>{
         tip(cell,`${p.name}: ${CL[i]} recognised as ${CL[j]} — ${v} of ${tot}`);
         const dark=r>=.40;
         txt(s,{x:x+C/2,y:y+C/2+1,'font-size':14,'font-weight':800,fill:dark?PAPER:TXT,'text-anchor':'middle'},v);
-        txt(s,{x:x+C/2,y:y+C/2+14,'font-size':9.5,'font-weight':600,fill:dark?'rgba(247,242,235,.8)':MUT,'text-anchor':'middle'},(100*r).toFixed(r<.1&&r>0?1:0)+'%');
+        txt(s,{x:x+C/2,y:y+C/2+14,'font-size':9.5,'font-weight':600,fill:dark?'rgba(247,242,235,.8)':MUT,'text-anchor':'middle'},(100*r).toFixed((r<.1&&r>0)||(r>=.995&&r<1)?1:0)+'%');
       });
     });
     // the costly error: PF recognised as SIF
@@ -210,7 +210,7 @@ obsReveal('ch',s=>{
   });
   txt(s,{x:20,y:(base+top)/2,'font-size':10.5,'font-weight':700,fill:MUT,'letter-spacing':'.1em','text-anchor':'middle',transform:`rotate(-90 20 ${(base+top)/2})`},'|V_0| ERROR (PU)');
   K.forEach(k=>txt(s,{x:x(k),y:base+22,'font-size':11.5,'font-weight':700,fill:LAB,'text-anchor':'middle'},k.toFixed(1)));
-  txt(s,{x:(X0+X1)/2,y:base+44,'font-size':10.5,'font-weight':700,fill:MUT,'text-anchor':'middle','letter-spacing':'.12em'},'INJECTED NEUTRAL DISPLACEMENT k (PU OF |V_1|)');
+  txt(s,{x:(X0+X1)/2,y:base+44,'font-size':10.5,'font-weight':700,fill:MUT,'text-anchor':'middle','letter-spacing':'.12em'},'INJECTED NEUTRAL DISPLACEMENT κ (PU OF |V_1|)');
   SER.slice().reverse().forEach(([m,c,hero,lab])=>{
     const v=S[m];
     v.forEach(([md,p90],i)=>{el(s,'line',{x1:x(K[i]),y1:y(md),x2:x(K[i]),y2:y(p90),stroke:c,'stroke-width':1.6,opacity:.85});
@@ -218,7 +218,7 @@ obsReveal('ch',s=>{
         txt(s,{x:xx+7,y:top+8,'font-size':10,'font-weight':700,fill:c===FAINTDATA?MUT:c,'text-anchor':'start'},p90.toFixed(2))}});
     el(s,'path',{d:'M'+v.map(([md],i)=>`${x(K[i])} ${y(md)}`).join(' L '),fill:'none',stroke:c,'stroke-width':hero?2.4:1.8});
     v.forEach(([md,p90],i)=>{const d=el(s,'circle',{cx:x(K[i]),cy:y(md),r:hero?5:4,fill:hero?c:BG,stroke:c,'stroke-width':hero?0:1.8});
-      tip(d,`${lab}, k=${K[i]}: median ${md.toFixed(4)} pu, p90 ${p90.toFixed(4)} pu`)});
+      tip(d,`${lab}, κ=${K[i]}: median ${md.toFixed(4)} pu, p90 ${p90.toFixed(4)} pu`)});
   });
   // annotate the proposed method at k=0.9 and k=1
   const a=S['LL self-calibration (proposed)'];

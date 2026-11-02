@@ -290,14 +290,17 @@ for d in info:
     s0 = time.perf_counter(); rcf = closed_form(Vref); s1 = time.perf_counter()
     g, order, _ = carm.ll_calibrate(Vref); s2 = time.perf_counter()
     gi = g[order]; rit = np.array([gi[1] / gi[0], gi[2] / gi[0]])
-    if np.all(rcf > 0):
+    if np.all(rcf > 0) and np.all(np.abs(np.log(rcf)) <= np.log(4)):    # closed form inside the bounds of Eq. (3)
         dif.append(np.abs(np.log(rcf / rit)).max())
     tcf.append((s1 - s0) * 1000); tit.append((s2 - s1) * 1000)
 m = E.model('et', seed=0).fit(F0, y)
 tb = []
 for _ in range(5):
     s0 = time.perf_counter(); m.predict_proba(F0[:47]); tb.append((time.perf_counter() - s0) * 1000 / 47)
-res['calibration_closed_form'] = dict(n=len(dif), max_abs_log_ratio_diff=float(np.max(dif)), median=float(np.median(dif)),
+res['calibration_closed_form'] = dict(n_inside_bounds=len(dif), n=len(info), max_abs_log_ratio_diff=float(np.max(dif)),
+                                      median=float(np.median(dif)), p95=float(np.percentile(dif, 95)),
                                       ms_closed=float(np.median(tcf)), ms_iterative=float(np.median(tit)))
+res['calibration_residual'] = dict(median=float(np.median([d['cal_res'] for d in info])),
+                                   p90=float(np.percentile([d['cal_res'] for d in info], 90)))
 res['inference_ms_per_record_batch47'] = float(np.median(tb))
 save(); print('done', round(time.time() - t0), 's', flush=True)

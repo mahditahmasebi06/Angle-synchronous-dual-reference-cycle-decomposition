@@ -91,16 +91,16 @@ obsReveal('ch',s=>{
     el(s,'line',{x1:x0,y1:y,x2:x0,y2:y+7,stroke:DATA,'stroke-width':2});el(s,'line',{x1:x1,y1:y,x2:x1,y2:y+7,stroke:DATA,'stroke-width':2});
     txt(s,{x:(x0+x1)/2,y:y-8,'font-size':11.5,'font-weight':800,fill:DATA,'text-anchor':'middle','letter-spacing':'.08em'},lab)};
   band(xs[0],xs[0]+BW,y1-18,'INPUT');
-  band(xs[1],xs[3]+BW,y1-18,'STAGE I · SIGNAL CONDITIONING (SECS. 4.1, 4.4)');
+  band(xs[1],xs[3]+BW,y1-18,'STAGE I · SIGNAL CONDITIONING (SECS. 4.1–4.3)');
   band(xs[0],xs[0]+BW,y2-18,'STAGE II · DETECTION (4.3)');
-  band(xs[1],xs[2]+BW,y2-18,'STAGE III · REPRESENTATION (4.2, 4.5, 4.6)');
+  band(xs[1],xs[2]+BW,y2-18,'STAGE III · REPRESENTATION (4.4–4.6)');
   band(xs[3],xs[3]+BW,y2-18,'STAGE IV · CLASSIFICATION');
   box(xs[0],y1,'1','Field record',['I_a, I_b, I_c, I_n, V_a, V_b, V_c','f_s = 4096 Hz (81.92 /cycle)','1312 samples = 320 ms','≈ 16 cycles at 50 Hz'],'input');
-  box(xs[1],y1,'2','Frequency tracking',['positive-sequence V_1 phasor','median cycle rotation','3 iterations, gate 0.8·max','accepted 47.5–52.5 Hz']);
-  box(xs[2],y1,'3','Angle resampling',['cubic spline, θ_m = 2πm/M','M = 128 samples per cycle','C[ch, k, m], k = 0…15','exact integer orders']);
-  box(xs[3],y1,'4','VT self-calibration',['ABC/ACB sequence check','min |V_2| of line voltages','L-BFGS-B, 10 starts','gains ≤ 4:1, V_0 preserved']);
-  box(xs[0],y2,'5','Event detection',['C1: R ≥ 3 and A ≥ 0.2','C2: |V_0|/|V_1| ≥ 0.3','event = C1 or C2','onset k_0 (MAD change point)']);
-  box(xs[1],y2,'6','Dual-reference maps',['N_k = C_k − C_{k−1}','S_k = C_k − T (pre-onset)','noise floor: orders 30–64','per unit of load current']);
+  box(xs[1],y1,'2','Frequency tracking',['dominant V_1 or V_2 phasor','median cycle rotation','3 iterations, gate 0.8·max','accepted 47.5–52.5 Hz']);
+  box(xs[2],y1,'3','Angle resampling',['cubic spline, θ_m = 2πm/M','M = 128 samples per cycle','K = 16 complete cycles','(15 when f < 49.99 Hz)']);
+  box(xs[3],y1,'4','Onset, VT calibration',['onset k_0 from current e_N','reference cycles k < k_0','min |V_2| of line voltages','gains ≤ 4:1, V_0 preserved']);
+  box(xs[0],y2,'5','Event detection',['C1: R ≥ 3 and A ≥ 0.2','C2: |V_0|/|V_1| ≥ 0.3','event = C1 or C2','otherwise: no event']);
+  box(xs[1],y2,'6','Dual-reference maps',['N_k = C_k − C_{k−1}','S_k = C_k − T (pre-onset)','noise floor below input Nyquist','per unit of load current']);
   box(xs[2],y2,'7','Descriptors',['91 phase-invariant AS-DRCD','+ 63 phase-sorted spectral','= 154 features / record','no labels used up to here']);
   box(xs[3],y2,'8','Extra-Trees',['300 trees, √d per split','balanced class weights','SIF · MIF · PF · TD','+ class probabilities'],'dark');
   // row-1 arrows
@@ -116,7 +116,7 @@ obsReveal('ch',s=>{
   el(s,'line',{x1:rx0,y1:ry,x2:rx1,y2:ry,stroke:GRID,'stroke-width':1.2});
   for(let k=0;k<=16;k++)el(s,'line',{x1:tx(k*20),y1:ry,x2:tx(k*20),y2:ry-(k%5===0?9:5),stroke:FLOOR,'stroke-width':1.2});
   el(s,'rect',{x:tx(0),y:ry-34,width:tx(80)-tx(0),height:10,rx:4,fill:DATA2});
-  txt(s,{x:tx(80)+8,y:ry-25,'font-size':10.5,'font-weight':700,fill:MUT},'onset reference: novelty of cycles 1–3 (0–80 ms)');
+  txt(s,{x:tx(80)+8,y:ry-25,'font-size':10.5,'font-weight':700,fill:MUT},'onset reference: e_N(k), k = 1–3 (cycles 0–3, 0–80 ms)');
   el(s,'rect',{x:tx(60),y:ry-18,width:tx(320)-tx(60),height:10,rx:4,fill:HERO});
   txt(s,{x:tx(60),y:ry-40,'font-size':10.5,'font-weight':700,fill:TXT,'text-anchor':'start'},'');
   txt(s,{x:tx(320),y:ry-25,'font-size':10.5,'font-weight':700,fill:TXT,'text-anchor':'end'},'analysis window: onset k_0 → end of record');

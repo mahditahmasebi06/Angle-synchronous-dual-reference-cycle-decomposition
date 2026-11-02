@@ -68,8 +68,7 @@ obsReveal('ch',s=>{
   const X0=292,PX=8.6,y0=i=>22+i*30;
   R.forEach((r,i)=>{
     const y=y0(i),v=Math.round(r.share*100),hero=i<2;
-    txt(s,{x:X0-14,y:y+4,'font-size':12,'font-weight':hero?800:600,fill:hero?TXT:LAB,'text-anchor':'end'},r.name);
-    txt(s,{x:X0-14,y:y+17,'font-size':9.5,'font-weight':600,fill:FAINT,'text-anchor':'end','letter-spacing':'.06em'},r.n+' FEATURES');
+    txt(s,{x:X0-14,y:y+4,'font-size':12,'font-weight':hero?800:600,fill:hero?TXT:LAB,'text-anchor':'end'},r.name+' ('+r.n+')');
     el(s,'line',{x1:X0,y1:y+9,x2:X0+50*PX,y2:y+9,stroke:GRID,'stroke-width':1});
     for(let k=0;k<v;k++){const x=X0+k*PX+PX/2,h=12+rnd(k+1,i+2)*6;
       el(s,'line',{x1:x,y1:y+9,x2:x,y2:y+9-h,stroke:r.name.startsWith('Spectral')?DATA2:HERO,'stroke-width':1.8,opacity:.85+rnd(k+3,i+5)*.15});
@@ -78,7 +77,7 @@ obsReveal('ch',s=>{
     tip(lab,`${r.name}: ${(r.share*100).toFixed(1)} % of impurity decrease; permutation ΔF1 ${r.perm.toFixed(3)}`);
     txt(s,{x:828,y:y+6,'font-size':11,'font-weight':600,fill:MUT,'text-anchor':'end'},Math.abs(r.perm)<0.0005?'0.000':(r.perm>=0?'+':'−')+Math.abs(r.perm).toFixed(3));
   });
-  txt(s,{x:828,y:8,'font-size':10,'font-weight':700,fill:FAINT,'text-anchor':'end','letter-spacing':'.08em'},'PERMUTATION ΔF1');
+  txt(s,{x:828,y:8,'font-size':10,'font-weight':700,fill:FAINT,'text-anchor':'end','letter-spacing':'.08em'},'ΔF1 WHEN PERMUTED (DROP > 0)');
   txt(s,{x:X0,y:R.length*30+30,'font-size':10.5,'font-weight':600,fill:MUT},'one tick = 1 % of the total impurity decrease (fused Extra-Trees, 10 seeds)');txt(s,{x:X0,y:R.length*30+46,'font-size':10.5,'font-weight':600,fill:MUT},'pale ticks = B1 spectral statistics · dot marks every fifth tick');
 });
 """
