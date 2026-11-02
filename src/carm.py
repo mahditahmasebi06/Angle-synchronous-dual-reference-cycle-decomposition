@@ -152,7 +152,10 @@ def seq(P):
 
 
 # ----------------------------------------------------------------- main decomposition
-def decompose(x, use_angle=True, calibrate=True, fs=FS):
+def decompose(x, use_angle=True, calibrate=True, fs=FS, nf_band='inband', k0_fix=None):
+    """nf_band: 'inband' = noise floor from orders 0.6..0.93 of the Nyquist order fs/(2f) of the input
+    recording (orders 25-38 at 4096 Hz; revised method); 'fixed' = orders 30..M/2 of the 128-point grid
+    (first submission). k0_fix: impose the onset cycle (diagnostic: onset taken from the clean record)."""
     x = np.asarray(x, float)
     if use_angle:
         f = estimate_frequency(x[:, 4:7], fs)
@@ -164,6 +167,8 @@ def decompose(x, use_angle=True, calibrate=True, fs=FS):
         C = naive_cycles(x, fs)
     K = C.shape[1]
     k0, nov_en, thr = detect_onset(C)
+    if k0_fix is not None:
+        k0 = int(k0_fix)
     k0 = min(k0, K - 2)
     P = cycle_phasor(C)                                    # (7, K)
     # reference window: pre-event cycles, or (energisation case) the last cycles
@@ -188,11 +193,16 @@ def decompose(x, use_angle=True, calibrate=True, fs=FS):
     Ibase = max(Iref, 5.0)
     S = C - T[:, None, :]                                  # superimposed map
     N = np.concatenate([np.zeros_like(C[:, :1]), np.diff(C, axis=1)], axis=1)  # novelty map
-    # broadband noise floor of the novelty map, from its high orders (30..M/2) in the
-    # median cycle, extrapolated to the full band (white-noise assumption)
+    # broadband noise floor of the novelty map: power of the median cycle in a band of high orders
+    # below the Nyquist order of the input recording, extrapolated to the full band (white noise)
     m = C.shape[-1]
     Pn = np.abs(np.fft.rfft(N[:, 1:], axis=-1)) ** 2 / m ** 2 * 2     # (ch, K-1, bins)
-    hf = slice(30, m // 2 + 1)
-    noise_ms = np.median(Pn[:, :, hf].sum(-1), axis=1) * (m // 2 + 1) / (m // 2 + 1 - 30)
+    if nf_band == 'inband':                 # stay below the Nyquist order of the input recording
+        nyq = fs / (2.0 * f)
+        lo, hi = int(round(0.6 * nyq)), min(int(np.floor(0.93 * nyq)), m // 2)
+    else:
+        lo, hi = 30, m // 2
+    hf = slice(lo, hi + 1)
+    noise_ms = np.median(Pn[:, :, hf].sum(-1), axis=1) * (m // 2 + 1) / (hi + 1 - lo)
     return dict(C=C, T=T, S=S, N=N, noise_ms=noise_ms, P=P, k0=k0, f=f, g=g, Ibase=Ibase, Iref=Iref,
                 energised=energised, ref=ref, vorder=vorder, cal_res=cal_res, nov_en=nov_en, thr=thr)

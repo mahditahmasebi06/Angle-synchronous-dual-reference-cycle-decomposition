@@ -39,7 +39,8 @@ abl = {'no angle resampling (integer 82-sample cycles)': dict(use_angle=False),
        'no voltage normalisation': dict(calibrate=False),
        'no dual-reference descriptors': dict(dual=False),
        'no whole-record profile, V0 trajectory, template harmonics': dict(profile=False),
-       'no noise-floor correction': dict(denoise=False)}
+       'no noise-floor correction': dict(denoise=False),
+       'noise floor from orders 30-64 (first submission)': dict(nf_band='fixed')}
 for name, kw in abl.items():
     FF = carm(X, **kw)
     for proto in ['strat', 'group']:

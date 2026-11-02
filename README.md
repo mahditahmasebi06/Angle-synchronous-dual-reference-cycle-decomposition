@@ -8,13 +8,13 @@ AS-DRCD detects and classifies incipient faults in substation waveform records:
 
 | Stage | Step | Settings used in the paper |
 | --- | --- | --- |
-| I. Signal conditioning | Positive-sequence frequency tracking | 3 iterations, accepted 47.5–52.5 Hz |
-| | Angle-synchronous resampling | M = 128 samples per cycle, K = 16 cycles (input fs = 4096 Hz, 81.92 samples/cycle) |
-| | Line-voltage self-calibration of the VT gains | L-BFGS-B, 10 starts, gain ratios ≤ 4:1, V0 preserved |
+| I. Signal conditioning | Frequency tracking from the dominant sequence phasor (positive, or negative for ACB channels) | 3 iterations, accepted 47.5–52.5 Hz |
+| | Angle-synchronous resampling | M = 128 samples per cycle, K = ⌊(N−1)f/fs⌋ complete cycles (16 at 50 Hz; input fs = 4096 Hz, 81.92 samples/cycle) |
+| | Onset (MAD change point) | reference = novelty of cycles 1–3; fallback: cycle of largest novelty |
+| | Line-voltage self-calibration of the VT gains | on the averaged reference phasor (cycles before the onset); L-BFGS-B, 10 starts, gain ratios ≤ 4:1, V0 preserved |
 | II. Detection | C1: current novelty contrast and amplitude | R ≥ 3 and A ≥ 0.2 (pu of load current) |
 | | C2: neutral-voltage displacement | max \|V0\|/\|V1\| ≥ 0.3 |
-| | Onset (MAD change point) | reference = novelty of cycles 1–3 |
-| III. Representation | Novelty map N = C(k) − C(k−1), superimposed map S = C(k) − T | noise floor from orders 30–64 |
+| III. Representation | Novelty map N = C(k) − C(k−1), superimposed map S = C(k) − T | noise floor from orders 0.6–0.93 of the input Nyquist order fs/(2f) (25–38 at 4096 Hz) |
 | | 91 phase-invariant descriptors + 63 phase-sorted spectral statistics | 154 features per record |
 | IV. Classification | Extra-Trees | 300 trees, √d features per split, balanced class weights |
 
@@ -65,6 +65,8 @@ python paper_stats.py          # Figs. 7 and 10
 python oscgrid_calib.py        # Fig. 15
 python figure_data.py          # data of Figs. 5, 8 and 12
 python figs_waveforms.py       # Figs. 1, 2, 4 and 6
+python run_revision.py         # fold-level t-tests, Table 8 AUC, fused-model ablations (Table 10b),
+                               # noise diagnostics, OscGrid detector checks, VT-gain test (about 60 min)
 cd ../charts
 python charts_a.py && python charts_b.py && python charts_c.py && python render.py   # Figs. 3, 5, 7-15
 ```
@@ -77,6 +79,7 @@ python charts_a.py && python charts_b.py && python charts_c.py && python render.
 | Figs. 7, 10 | `src/paper_stats.py` | `results/paper_stats.json` |
 | Fig. 15 | `src/oscgrid_calib.py` | `results/oscgrid_calibration.json` |
 | Figs. 5, 8, 12 | `src/figure_data.py` | `results/descriptor_dump.json`, `results/detect_example.json` |
+| Section 5.1 tests, Table 8, Table 10b, Sections 3.3, 4.2, 4.3, 6.1, 6.7, 6.10 | `src/run_revision.py` | `results/revision.json` |
 | Figs. 1, 2, 4, 6 | `src/figs_waveforms.py` | `charts/png/fig_samples.png`, `fig_scenarios.png`, `fig_calibration.png`, `fig_maps.png` |
 | Figs. 3, 5, 7–15 | `charts/*.py`, `charts/render.py` | `charts/png/fig_*.png` |
 

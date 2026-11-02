@@ -20,8 +20,9 @@ def _runs(mask):
     return r
 
 
-def carm_features(x, use_angle=True, calibrate='ll', dual=True, profile=True, denoise=True, fs=carm.FS):
-    d = carm.decompose(x, use_angle=use_angle, calibrate=calibrate, fs=fs)
+def carm_features(x, use_angle=True, calibrate='ll', dual=True, profile=True, denoise=True, fs=carm.FS,
+                  nf_band='inband', k0_fix=None):
+    d = carm.decompose(x, use_angle=use_angle, calibrate=calibrate, fs=fs, nf_band=nf_band, k0_fix=k0_fix)
     C, S, N, P, T = d['C'], d['S'], d['N'], d['P'], d['T']
     K, m = C.shape[1], C.shape[2]
     k0, Ib = d['k0'], d['Ibase']
@@ -140,7 +141,7 @@ def carm_features(x, use_angle=True, calibrate='ll', dual=True, profile=True, de
         en_all = eNp[1:]
         for q in (50, 75, 90):
             F[f'novq{q}'] = np.log10(np.percentile(en_all, q) + 1e-4)
-        F['nov_max_over_med'] = np.log10(en_all.max() / (np.median(en_all) + 1e-4))
+        F['nov_max_over_med'] = np.log10(max(en_all.max(), 1e-4) / (np.median(en_all) + 1e-4))   # finite when all cycles are below the noise floor
         for th in (0.05, 0.15, 0.5):
             F[f'nov_gt{th}'] = (en_all > th).mean()
             F[f'sup_gt{th}'] = (eSp > th).mean()

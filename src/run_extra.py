@@ -188,6 +188,10 @@ m = E.model('et', seed=0).fit(F0, y); t0 = time.perf_counter()
 for i in range(100):
     m.predict(F0[i % len(y)][None])
 tm['classifier_ms'] = [(time.perf_counter() - t0) * 10]
+bt = []                                            # batch inference: one call for a test fold of 47 records
+for r in range(20):
+    t0 = time.perf_counter(); m.predict(F0[:47]); bt.append((time.perf_counter() - t0) * 1000 / 47)
+tm['classifier_batch_ms'] = bt
 res['timing'] = {k: float(np.median(v)) for k, v in tm.items()}
 print('timing', res['timing'], flush=True); save()
 print('DONE', flush=True)
