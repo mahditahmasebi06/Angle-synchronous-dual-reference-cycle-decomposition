@@ -1,0 +1,106 @@
+{
+ "events": {
+  "n": 236,
+  "current": 191,
+  "v0": 170,
+  "either": 234,
+  "per_class": [
+   49,
+   34,
+   123,
+   28
+  ]
+ },
+ "healthy": {
+  "n": 125,
+  "current": 6,
+  "v0": 0,
+  "either": 6
+ },
+ "healthy_gain_ll": {
+  "n": 125,
+  "current": 6,
+  "v0": 0,
+  "either": 6
+ },
+ "healthy_gain_True": {
+  "n": 125,
+  "current": 6,
+  "v0": 0,
+  "either": 6
+ },
+ "healthy_gain_False": {
+  "n": 125,
+  "current": 6,
+  "v0": 0,
+  "either": 6
+ },
+ "events_gain_mageq": {
+  "n": 236,
+  "current": 191,
+  "v0": 147,
+  "either": 228,
+  "per_class": [
+   49,
+   34,
+   117,
+   28
+  ]
+ },
+ "events_snr30": {
+  "n": 236,
+  "current": 181,
+  "v0": 170,
+  "either": 234,
+  "per_class": [
+   49,
+   34,
+   123,
+   28
+  ]
+ },
+ "healthy_snr30": {
+  "n": 125,
+  "current": 5,
+  "v0": 0,
+  "either": 5
+ },
+ "events_snr20": {
+  "n": 236,
+  "current": 125,
+  "v0": 171,
+  "either": 228,
+  "per_class": [
+   44,
+   34,
+   122,
+   28
+  ]
+ },
+ "healthy_snr20": {
+  "n": 125,
+  "current": 4,
+  "v0": 0,
+  "either": 4
+ },
+ "healthy_flag_A": [
+  551.17,
+  0.4,
+  2.18,
+  10.59,
+  25.37,
+  0.31
+ ],
+ "thresholds": {
+  "R": 3,
+  "A": 0.2,
+  "V0": 0.3
+ },
+ "sens": {
+  "0.2": 235,
+  "0.25": 235,
+  "0.3": 234,
+  "0.35": 234,
+  "0.4": 232
+ }
+}

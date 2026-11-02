@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+data/
+cache/
+charts/html/
+results/detect_example.json
+.DS_Store
