@@ -60,32 +60,40 @@ python prepare_oscgrid.py      # data/oscgrid/u6400_recs.npz
 python make_features.py        # cache/: baseline features B1-B5
 python run_detection.py        # Table 6 (detection), pickup sensitivity
 python run_final.py            # Tables 7, 9, 10, Figs. 9 and 13 (about 30 min on 2 cores)
-python run_extra.py            # Table 8, Table 11, Figs. 11, 12 and 14
+python run_extra.py            # Table 8, Table 12, Figs. 11, 12 and 14
 python paper_stats.py          # Figs. 7 and 10
-python oscgrid_calib.py        # Fig. 15
+python oscgrid_calib.py        # Fig. 16
 python figure_data.py          # data of Figs. 5, 8 and 12
 python figs_waveforms.py       # Figs. 1, 2, 4 and 6
 python run_revision.py         # fold-level t-tests, Table 8 AUC, fused-model ablations (Table 10b),
                                # noise diagnostics, OscGrid detector checks, VT-gain test (about 60 min)
+python bo_window2.py ABC       # Section 6.9, Table 11: Bayesian search over 13 time-window parameters (about 2 h)
+python window_example.py       # data of Fig. 15a-b
 cd ../charts
-python charts_a.py && python charts_b.py && python charts_c.py && python render.py   # Figs. 3, 5, 7-15
+python charts_a.py && python charts_b.py && python charts_c.py && python charts_d.py && python render.py   # Figs. 3, 5, 7-16
 ```
 
 | Paper item | Script | Output |
 | --- | --- | --- |
 | Table 6 | `src/run_detection.py` | `results/detection_summary.json`, `results/detect_stats2.json` |
 | Tables 7, 9, 10; Figs. 9, 13 | `src/run_final.py` | `results/final.json` |
-| Tables 8, 11; Figs. 11, 12, 14 | `src/run_extra.py` | `results/extra.json` |
+| Tables 8, 12; Figs. 11, 12, 14 | `src/run_extra.py` | `results/extra.json` |
 | Figs. 7, 10 | `src/paper_stats.py` | `results/paper_stats.json` |
-| Fig. 15 | `src/oscgrid_calib.py` | `results/oscgrid_calibration.json` |
+| Fig. 16 | `src/oscgrid_calib.py` | `results/oscgrid_calibration.json` |
+| Section 6.9, Table 11, Fig. 15 | `src/bo_window2.py`, `src/window_example.py` | `results/window_search2.json`, `results/window_example.json` |
 | Figs. 5, 8, 12 | `src/figure_data.py` | `results/descriptor_dump.json`, `results/detect_example.json` |
-| Section 5.1 tests, Table 8, Table 10b, Sections 3.3, 4.2, 4.3, 6.1, 6.7, 6.10 | `src/run_revision.py` | `results/revision.json` |
+| Section 5.1 tests, Table 8, Table 10b, Sections 3.3, 4.2, 4.3, 6.1, 6.7, 6.11 | `src/run_revision.py` | `results/revision.json` |
 | Figs. 1, 2, 4, 6 | `src/figs_waveforms.py` | `charts/png/fig_samples.png`, `fig_scenarios.png`, `fig_calibration.png`, `fig_maps.png` |
-| Figs. 3, 5, 7–15 | `charts/*.py`, `charts/render.py` | `charts/png/fig_*.png` |
+| Figs. 3, 5, 7–16 | `charts/*.py`, `charts/render.py` | `charts/png/fig_*.png` |
 
 Figure files: 1 `fig_samples`, 2 `fig_scenarios`, 3 `fig_framework`, 4 `fig_calibration`, 5 `fig_detection`,
 6 `fig_maps`, 7 `fig_v0traj`, 8 `fig_descriptors`, 9 `fig_confusion`, 10 `fig_recall`, 11 `fig_tsne`,
-12 `fig_importance`, 13 `fig_robustness`, 14 `fig_sensitivity`, 15 `fig_oscgrid`.
+12 `fig_importance`, 13 `fig_robustness`, 14 `fig_sensitivity`, 15 `fig_windows`, 16 `fig_oscgrid`.
+
+`src/bo_window.py` is the first, smaller search over the onset, template and post-onset windows
+(`results/window_search.json`); `src/bo_window2.py` extends it to all thirteen time-window parameters. The window
+settings live in `carm.WIN`; the paper setting (one-cycle frames, no overlap, one-cycle novelty lag) runs the
+cycle-based code and reproduces the published features exactly.
 
 ## Use of AI-assisted tools
 

@@ -28,9 +28,10 @@ def _est_freq(v, fs=FS, f0=F0, iters=3):
     f = f0
     n = np.arange(v.shape[0])
     for _ in range(iters):
-        L = int(round(fs / f))
+        L = int(round(WIN['ft_cycles'] * fs / f))              # phasor window (one cycle in the paper)
+        H = max(1, int(round(L * (1.0 - WIN['ft_overlap']))))   # window hop (= L: no overlap)
         ph = np.exp(-2j * np.pi * f * n / fs)
-        Z = np.stack([np.convolve(v[:, ch] * ph, np.ones(L), 'valid')[::L] for ch in range(3)])
+        Z = np.stack([np.convolve(v[:, ch] * ph, np.ones(L), 'valid')[::H] for ch in range(3)])
         if Z.shape[1] < 3:
             return f0
         _, z1, z2 = seq(Z)
@@ -38,7 +39,7 @@ def _est_freq(v, fs=FS, f0=F0, iters=3):
         r = z[1:] * np.conj(z[:-1])
         w = np.abs(r)
         keep = w > 0.8 * w.max()
-        df = np.median(np.angle(r[keep])) / (2 * np.pi * L / fs)
+        df = np.median(np.angle(r[keep])) / (2 * np.pi * H / fs)
         f = f + np.clip(df, -1.0, 1.0)
     return float(f) if 47.5 <= f <= 52.5 else f0
 
@@ -48,9 +49,13 @@ def estimate_frequency(v, fs=FS, f0=F0):
 
 
 # ----------------------------------------------------------------- resampling
-def angle_resample(x, f, fs=FS, m=M):
+def angle_resample(x, f, fs=FS, m=None):
     """Resample to an exact integer number of samples per fundamental cycle.
     Returns C[ch, K, m] (K full cycles) and the time vector used."""
+    m = int(WIN['M']) if m is None else m
+    if m * f < fs:                               # coarser grid than the input: zero-phase anti-aliasing
+        from scipy.signal import butter, sosfiltfilt
+        x = sosfiltfilt(butter(8, 0.45 * m * f, fs=fs, output='sos'), x, axis=0)
     t = np.arange(x.shape[0]) / fs
     K = int(np.floor(t[-1] * f))
     tq = np.arange(K * m) / (m * f)
@@ -75,14 +80,41 @@ def cycle_phasor(C):
 
 
 # ----------------------------------------------------------------- onset
+# time-window settings (defaults = the paper); changed only by the window search (src/bo_window.py)
+WIN = dict(onset_ref=3,      # novelty values e_N(1..n) used for the MAD reference of the onset rule
+           mad_k=6.0,        # MAD multiplier of the onset threshold
+           tmpl_cycles=None, # pre-onset cycles in the template/calibration reference (None: all k < k0)
+           energ_cycles=3,   # last cycles used as reference for an energisation
+           ft_cycles=1,      # frequency tracking: phasor window length (cycles)
+           ft_overlap=0.0,   # frequency tracking: overlap of consecutive windows (fraction)
+           M=128,            # processing samples per cycle after angle resampling
+           frame_cycles=1.0, # analysis frame of the N/S energy series (cycles)
+           frame_overlap=0.0,  # overlap of consecutive analysis frames (fraction)
+           nov_lag=1)        # novelty lag (cycles): N(t) = C(t) - C(t - lag)
+
+
+def detect_onset_frames(Cf, Nf, first, hop_cyc, chans=(0, 1, 2, 3), min_pre=1):
+    """Onset rule of Eq. (6) on the frame novelty series; returns the onset frame index."""
+    base = np.sqrt((Cf[list(chans)] ** 2).mean(-1)).max(0) + 1e-9
+    en = np.sqrt((Nf[list(chans), first:] ** 2).mean(-1)).sum(0)
+    nr = max(2, int(round(WIN['onset_ref'] / hop_cyc)))
+    ref = np.median(en[:nr]) if len(en) >= nr else en[0]
+    mad = np.median(np.abs(en[:nr] - ref)) + 1e-9
+    thr = max(ref + WIN['mad_k'] * 1.4826 * mad, 3 * ref, 0.02 * np.median(base))
+    idx = np.where(en > thr)[0]
+    k0 = int(np.argmax(en)) if len(idx) == 0 else int(idx[0])
+    return max(k0 + first, min_pre), en, thr
+
+
 def detect_onset(C, chans=(0, 1, 2, 3), min_pre=1):
     """Change point on cycle-novelty energy of currents (and neutral)."""
     N = np.diff(C[list(chans)], axis=1)                  # (c, K-1, m)
     base = np.sqrt((C[list(chans)] ** 2).mean(-1)).max(0) + 1e-9  # cycle RMS envelope
     en = np.sqrt((N ** 2).mean(-1)).sum(0)              # novelty RMS summed over channels
-    ref = np.median(en[:3]) if len(en) >= 3 else en[0]
-    mad = np.median(np.abs(en[:3] - ref)) + 1e-9
-    thr = max(ref + 6 * 1.4826 * mad, 3 * ref, 0.02 * np.median(base))
+    nr = int(WIN['onset_ref'])
+    ref = np.median(en[:nr]) if len(en) >= nr else en[0]
+    mad = np.median(np.abs(en[:nr] - ref)) + 1e-9
+    thr = max(ref + WIN['mad_k'] * 1.4826 * mad, 3 * ref, 0.02 * np.median(base))
     idx = np.where(en > thr)[0]
     if len(idx) == 0:
         k0 = int(np.argmax(en)) + 1
@@ -152,7 +184,78 @@ def seq(P):
 
 
 # ----------------------------------------------------------------- main decomposition
+def _frames(c, w, hop):
+    starts = np.arange(0, c.shape[1] - w + 1, hop)
+    return c[:, starts[:, None] + np.arange(w)], starts
+
+
 def decompose(x, use_angle=True, calibrate=True, fs=FS, nf_band='inband', k0_fix=None):
+    """Dispatch: the paper setting (one-cycle frames, no overlap, lag 1) uses the cycle code below;
+    other analysis windows use the frame-based decomposition."""
+    if use_angle and (WIN['frame_cycles'] != 1.0 or WIN['frame_overlap'] != 0.0 or WIN['nov_lag'] != 1):
+        return decompose_frames(x, calibrate=calibrate, fs=fs, nf_band=nf_band)
+    return decompose_cycles(x, use_angle, calibrate, fs, nf_band, k0_fix)
+
+
+def decompose_frames(x, calibrate=True, fs=FS, nf_band='inband'):
+    """Frame-based AS-DRCD: the angle-resampled record is treated as a continuous signal; the novelty
+    is N(t) = C(t) - C(t - lag cycles) and the superimposed signal S(t) = C(t) - T(phase); both are cut
+    into frames of W cycles with hop W(1 - overlap). Template and calibration use whole cycles."""
+    x = np.asarray(x, float)
+    f = estimate_frequency(x[:, 4:7], fs)
+    f = f if np.isfinite(f) else F0
+    Cc, _ = angle_resample(x, f, fs)
+    K, M_ = Cc.shape[1], Cc.shape[2]
+    W = float(WIN['frame_cycles']); w = int(round(W * M_))
+    hop = max(1, int(round(W * (1 - WIN['frame_overlap']) * M_))); Hc = hop / M_
+    lag = int(WIN['nov_lag']) * M_
+    c = Cc.reshape(7, K * M_)
+    n = np.zeros_like(c); n[:, lag:] = c[:, lag:] - c[:, :-lag]
+    Cf, starts = _frames(c, w, hop); Nf, _ = _frames(n, w, hop)
+    first = int(np.searchsorted(starts, lag))                 # first frame with a valid novelty
+    k0, nov_en, thr = detect_onset_frames(Cf, Nf, first, Hc)
+    k0 = min(k0, len(starts) - 2)
+    k0c = min(max(int(np.floor(starts[k0] / M_ + 1e-9)), 0), K - 2)   # onset cycle
+    Pc = cycle_phasor(Cc)
+    pre_rms = np.sqrt((Cc[4:7, :max(k0c, 1)] ** 2).mean())
+    ne = int(WIN['energ_cycles'])
+    energised = pre_rms < 0.2 * np.sqrt((Cc[4:7, -ne:] ** 2).mean())
+    nt = WIN['tmpl_cycles']
+    st = 0 if nt is None else max(max(k0c, 1) - int(nt), 0)
+    ref = slice(st, max(k0c, 1)) if not energised else slice(K - ne, K)
+    T = np.median(Cc[:, ref], axis=1)
+    Vref = Pc[4:7, ref].mean(1)
+    vorder = np.array([0, 1, 2]); cal_res = np.nan
+    if calibrate == 'll':
+        g, vorder, cal_res = ll_calibrate(Vref)
+    elif calibrate:
+        g = voltage_gains(Vref)
+    else:
+        g = np.ones(3) / (np.abs(Vref).mean() + 1e-9)
+    c = c.copy(); T = T.copy(); Pc = Pc.copy()
+    c[4:7] *= g[:, None]; T[4:7] *= g[:, None]; Pc[4:7] *= g[:, None]
+    Iref = np.abs(Pc[0:3, ref]).mean(); Ibase = max(Iref, 5.0)
+    s = c - np.tile(T, (1, K))
+    n = np.zeros_like(c); n[:, lag:] = c[:, lag:] - c[:, :-lag]
+    Cf, _ = _frames(c, w, hop); Sf, _ = _frames(s, w, hop); Nf, _ = _frames(n, w, hop)
+    e = np.exp(-2j * np.pi * (starts[:, None] + np.arange(w)) / M_)
+    Pf = 2.0 / w * (Cf * e).sum(-1)                           # frame phasors (absolute angle reference)
+    rf = np.where((starts >= ref.start * M_) & (starts + w <= ref.stop * M_))[0]
+    if len(rf) == 0:
+        rf = np.array([int(np.argmin(np.abs(starts - ref.start * M_)))])
+    # noise floor from the cycle-aligned novelty (orders below the input Nyquist order and the grid's)
+    Nc = n.reshape(7, K, M_)[:, int(WIN['nov_lag']):]
+    Pn = np.abs(np.fft.rfft(Nc, axis=-1)) ** 2 / M_ ** 2 * 2
+    nyq = min(fs / (2.0 * f), M_ / 2.0) if nf_band == 'inband' else None
+    lo, hi = (int(round(0.6 * nyq)), min(int(np.floor(0.93 * nyq)), M_ // 2)) if nyq else (30, M_ // 2)
+    noise_ms = np.median(Pn[:, :, lo:hi + 1].sum(-1), axis=1) * (M_ // 2 + 1) / (hi + 1 - lo)
+    return dict(C=Cf, T=T, S=Sf, N=Nf, noise_ms=noise_ms, P=Pf, k0=k0, f=f, g=g, Ibase=Ibase, Iref=Iref,
+                energised=energised, ref=slice(int(rf[0]), int(rf[-1]) + 1), vorder=vorder, cal_res=cal_res,
+                nov_en=nov_en, thr=thr, starts=starts, M=M_, W=w / M_, H=Hc, first=first, k0c=k0c,
+                s_cont=s, K_cycles=K)
+
+
+def decompose_cycles(x, use_angle=True, calibrate=True, fs=FS, nf_band='inband', k0_fix=None):
     """nf_band: 'inband' = noise floor from orders 0.6..0.93 of the Nyquist order fs/(2f) of the input
     recording (orders 25-38 at 4096 Hz; revised method); 'fixed' = orders 30..M/2 of the 128-point grid
     (first submission). k0_fix: impose the onset cycle (diagnostic: onset taken from the clean record)."""
@@ -173,9 +276,12 @@ def decompose(x, use_angle=True, calibrate=True, fs=FS, nf_band='inband', k0_fix
     P = cycle_phasor(C)                                    # (7, K)
     # reference window: pre-event cycles, or (energisation case) the last cycles
     pre_rms = np.sqrt((C[4:7, :max(k0, 1)] ** 2).mean())
-    post_rms = np.sqrt((C[4:7, -3:] ** 2).mean())
+    ne = int(WIN['energ_cycles'])
+    post_rms = np.sqrt((C[4:7, -ne:] ** 2).mean())
     energised = pre_rms < 0.2 * post_rms
-    ref = slice(0, max(k0, 1)) if not energised else slice(K - 3, K)
+    nt = WIN['tmpl_cycles']
+    start = 0 if nt is None else max(max(k0, 1) - int(nt), 0)
+    ref = slice(start, max(k0, 1)) if not energised else slice(K - ne, K)
     T = np.median(C[:, ref], axis=1)                       # (7, m) template
     # voltage calibration
     Vref = P[4:7, ref].mean(1)
@@ -198,11 +304,12 @@ def decompose(x, use_angle=True, calibrate=True, fs=FS, nf_band='inband', k0_fix
     m = C.shape[-1]
     Pn = np.abs(np.fft.rfft(N[:, 1:], axis=-1)) ** 2 / m ** 2 * 2     # (ch, K-1, bins)
     if nf_band == 'inband':                 # stay below the Nyquist order of the input recording
-        nyq = fs / (2.0 * f)
+        nyq = min(fs / (2.0 * f), m / 2.0)
         lo, hi = int(round(0.6 * nyq)), min(int(np.floor(0.93 * nyq)), m // 2)
     else:
         lo, hi = 30, m // 2
     hf = slice(lo, hi + 1)
     noise_ms = np.median(Pn[:, :, hf].sum(-1), axis=1) * (m // 2 + 1) / (hi + 1 - lo)
     return dict(C=C, T=T, S=S, N=N, noise_ms=noise_ms, P=P, k0=k0, f=f, g=g, Ibase=Ibase, Iref=Iref,
-                energised=energised, ref=ref, vorder=vorder, cal_res=cal_res, nov_en=nov_en, thr=thr)
+                energised=energised, ref=ref, vorder=vorder, cal_res=cal_res, nov_en=nov_en, thr=thr,
+                starts=np.arange(K) * m, M=m, W=1.0, H=1.0, first=1, k0c=k0, s_cont=S.reshape(7, -1), K_cycles=K)
